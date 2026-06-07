@@ -1,21 +1,21 @@
 name: Build and Scan Postgres pgvector
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true" # Future-proof: Opt-in to Node 24 to clear deprecation warnings
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true" # Opt-in to Node 24 for future-proofing
 
 on:
   schedule:
     - cron: '0 4 * * 0' # Every Sunday at 04:00 AM
   push:
     branches: [ "main" ]
-  workflow_dispatch: # Allows manual triggering from the GitHub UI
+  workflow_dispatch: 
   repository_dispatch:
-    types: [webhook-trigger] # Allows triggering via your private Webhook
+    types: [webhook-trigger] 
 
 permissions:
-  contents: write       # Required for the keepalive action to push dummy commits
-  packages: write       # Allows pushing images to GitHub Container Registry (GHCR)
-  security-events: write # Allows uploading Trivy scan results to the GitHub Security tab
+  contents: write       
+  packages: write       
+  security-events: write 
 
 jobs:
   build-and-scan:
@@ -24,7 +24,6 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      # Fix: Docker registry tags must be strictly lowercase (converts MiGoller to migoller)
       - name: Downcase repository name
         run: |
           echo "REPO_LOWERCASE=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
@@ -32,7 +31,7 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Step 1: Build the image locally so Trivy can scan it
+      # Step 1: Build the image locally
       - name: Build image locally
         uses: docker/build-push-action@v6
         with:
@@ -40,9 +39,9 @@ jobs:
           load: true
           tags: postgres-pgvector:test
 
-      # Step 2: Run Trivy vulnerability scanner
+      # Step 2: Run Trivy vulnerability scanner (Pinned to verified stable version)
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.24.0
         with:
           image-ref: 'postgres-pgvector:test'
           format: 'sarif'
@@ -64,14 +63,10 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step 5: Build and Push to GHCR (using the lowercase variable)
+      # Step 5: Build and Push to GHCR
       - name: Build and Push to GHCR
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: ghcr.io/${{ env.REPO_LOWERCASE }}:17-alpine
-
-      # Step 6: Keep-Alive
-      - name: Keep Alive Action
-        uses: gautamkrishnar/keepalive-workflow@v1
