@@ -6,11 +6,9 @@ RUN apk add --no-cache --virtual .build-deps \
         make \
         gcc \
         musl-dev \
-        clang16 \
-        llvm16 \
     && git clone --branch v0.8.2 https://github.com/pgvector/pgvector.git /tmp/pgvector \
     && cd /tmp/pgvector \
-    && make \
-    && make install \
+    && make with_llvm=no \
+    && make install with_llvm=no \
     && rm -rf /tmp/pgvector \
     && apk del .build-deps
